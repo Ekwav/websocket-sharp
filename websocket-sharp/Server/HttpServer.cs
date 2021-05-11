@@ -46,6 +46,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Security.Principal;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using WebSocketSharp.Net;
 using WebSocketSharp.Net.WebSockets;
 
@@ -739,46 +740,48 @@ namespace WebSocketSharp.Server
     #endregion
 
     #region Public Events
+    public delegate System.Threading.Tasks.Task AsyncEventHandler<TEventArgs>(object sender, TEventArgs e) where TEventArgs : System.EventArgs;
+
 
     /// <summary>
     /// Occurs when the server receives an HTTP CONNECT request.
     /// </summary>
-    public event EventHandler<HttpRequestEventArgs> OnConnect;
+    public event AsyncEventHandler<HttpRequestEventArgs> OnConnect;
 
     /// <summary>
     /// Occurs when the server receives an HTTP DELETE request.
     /// </summary>
-    public event EventHandler<HttpRequestEventArgs> OnDelete;
+    public event AsyncEventHandler<HttpRequestEventArgs> OnDelete;
 
     /// <summary>
     /// Occurs when the server receives an HTTP GET request.
     /// </summary>
-    public event EventHandler<HttpRequestEventArgs> OnGet;
+    public event AsyncEventHandler<HttpRequestEventArgs> OnGet;
 
     /// <summary>
     /// Occurs when the server receives an HTTP HEAD request.
     /// </summary>
-    public event EventHandler<HttpRequestEventArgs> OnHead;
+    public event AsyncEventHandler<HttpRequestEventArgs> OnHead;
 
     /// <summary>
     /// Occurs when the server receives an HTTP OPTIONS request.
     /// </summary>
-    public event EventHandler<HttpRequestEventArgs> OnOptions;
+    public event AsyncEventHandler<HttpRequestEventArgs> OnOptions;
 
     /// <summary>
     /// Occurs when the server receives an HTTP POST request.
     /// </summary>
-    public event EventHandler<HttpRequestEventArgs> OnPost;
+    public event AsyncEventHandler<HttpRequestEventArgs> OnPost;
 
     /// <summary>
     /// Occurs when the server receives an HTTP PUT request.
     /// </summary>
-    public event EventHandler<HttpRequestEventArgs> OnPut;
+    public event AsyncEventHandler<HttpRequestEventArgs> OnPut;
 
     /// <summary>
     /// Occurs when the server receives an HTTP TRACE request.
     /// </summary>
-    public event EventHandler<HttpRequestEventArgs> OnTrace;
+    public event AsyncEventHandler<HttpRequestEventArgs> OnTrace;
 
     #endregion
 
@@ -882,7 +885,7 @@ namespace WebSocketSharp.Server
       _sync = new object ();
     }
 
-    private void processRequest (HttpListenerContext context)
+    private async Task processRequest (HttpListenerContext context)
     {
       var method = context.Request.HttpMethod;
       var evt = method == "GET"
@@ -904,7 +907,7 @@ namespace WebSocketSharp.Server
                               : null;
 
       if (evt != null)
-        evt (this, new HttpRequestEventArgs (context, _docRootPath));
+        await evt (this, new HttpRequestEventArgs (context, _docRootPath));
       else
         context.Response.StatusCode = 501; // Not Implemented
 
@@ -945,8 +948,8 @@ namespace WebSocketSharp.Server
         try {
           ctx = _listener.GetContext ();
 
-          ThreadPool.QueueUserWorkItem (
-            state => {
+          Task.Run (
+            async () => {
               try {
                 if (ctx.Request.IsUpgradeRequest ("websocket")) {
                   processRequest (ctx.GetWebSocketContext (null));
@@ -954,7 +957,7 @@ namespace WebSocketSharp.Server
                   return;
                 }
 
-                processRequest (ctx);
+                await processRequest (ctx);
               }
               catch (Exception ex) {
                 _log.Fatal (ex.Message);
