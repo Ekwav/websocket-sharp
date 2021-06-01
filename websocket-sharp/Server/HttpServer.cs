@@ -947,7 +947,7 @@ namespace WebSocketSharp.Server
 
         try {
           ctx = _listener.GetContext ();
-
+          
           Task.Run (
             async () => {
               try {
@@ -1042,6 +1042,7 @@ namespace WebSocketSharp.Server
 
       _receiveThread = new Thread (new ThreadStart (receiveRequest));
       _receiveThread.IsBackground = true;
+      _receiveThread.Priority = ThreadPriority.AboveNormal;
       _receiveThread.Start ();
     }
 
