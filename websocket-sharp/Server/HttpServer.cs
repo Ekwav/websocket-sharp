@@ -947,11 +947,12 @@ namespace WebSocketSharp.Server
 
         try {
           ctx = _listener.GetContext ();
-          
+
           Task.Run (
             async () => {
               try {
                 if (ctx.Request.IsUpgradeRequest ("websocket")) {
+                    Console.WriteLine("s");
                   processRequest (ctx.GetWebSocketContext (null));
 
                   return;
@@ -966,7 +967,7 @@ namespace WebSocketSharp.Server
                 ctx.Connection.Close (true);
               }
             }
-          );
+          ).ConfigureAwait(false);
         }
         catch (HttpListenerException) {
           _log.Info ("The underlying listener is stopped.");
@@ -1042,7 +1043,7 @@ namespace WebSocketSharp.Server
 
       _receiveThread = new Thread (new ThreadStart (receiveRequest));
       _receiveThread.IsBackground = true;
-      _receiveThread.Priority = ThreadPriority.AboveNormal;
+      _receiveThread.Priority = ThreadPriority.Highest;
       _receiveThread.Start ();
     }
 
