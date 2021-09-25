@@ -952,7 +952,6 @@ namespace WebSocketSharp.Server
             async () => {
               try {
                 if (ctx.Request.IsUpgradeRequest ("websocket")) {
-                    Console.WriteLine("s");
                   processRequest (ctx.GetWebSocketContext (null));
 
                   return;
