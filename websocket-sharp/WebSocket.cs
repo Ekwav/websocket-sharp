@@ -1551,7 +1551,7 @@ namespace WebSocketSharp
         e = _messageEventQueue.Dequeue ();
       }
 
-      _message.BeginInvoke (e, ar => _message.EndInvoke (ar), null);
+      _message.Invoke (e);
     }
 
     private bool ping (byte[] data)
