@@ -8,7 +8,7 @@
  * The MIT License
  *
  * Copyright (c) 2005 Novell, Inc. (http://www.novell.com)
- * Copyright (c) 2012-2020 sta.blockhead
+ * Copyright (c) 2012-2022 sta.blockhead
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -153,15 +153,15 @@ namespace WebSocketSharp.Net
     }
 
     /// <summary>
-    /// Gets the client information (identity, authentication, and security roles).
+    /// Gets the client information.
     /// </summary>
     /// <value>
     ///   <para>
-    ///   A <see cref="IPrincipal"/> instance or <see langword="null"/> if not
-    ///   authenticated.
+    ///   A <see cref="IPrincipal"/> instance that represents identity,
+    ///   authentication, and security roles for the client.
     ///   </para>
     ///   <para>
-    ///   The instance describes the client.
+    ///   <see langword="null"/> if the client is not authenticated.
     ///   </para>
     /// </value>
     public IPrincipal User {
@@ -192,53 +192,9 @@ namespace WebSocketSharp.Net
                );
     }
 
-    private void sendAuthenticationChallenge (string challenge)
-    {
-      _response.StatusCode = 401;
-      _response.Headers.InternalSet ("WWW-Authenticate", challenge, true);
-
-      _response.Close ();
-    }
-
     #endregion
 
     #region Internal Methods
-
-    internal bool Authenticate ()
-    {
-      var schm = _listener.SelectAuthenticationScheme (_request);
-
-      if (schm == AuthenticationSchemes.Anonymous)
-        return true;
-
-      if (schm == AuthenticationSchemes.None) {
-        _errorStatusCode = 403;
-        _errorMessage = "Authentication not allowed";
-        SendError ();
-
-        return false;
-      }
-
-      var realm = _listener.GetRealm ();
-      var user = HttpUtility.CreateUser (
-                   _request.Headers["Authorization"],
-                   schm,
-                   realm,
-                   _request.HttpMethod,
-                   _listener.GetUserCredentialsFinder ()
-                 );
-
-      if (user == null || !user.Identity.IsAuthenticated) {
-        var chal = new AuthenticationChallenge (schm, realm).ToString ();
-        sendAuthenticationChallenge (chal);
-
-        return false;
-      }
-
-      _user = user;
-
-      return true;
-    }
 
     internal HttpListenerWebSocketContext GetWebSocketContext (string protocol)
     {
@@ -247,9 +203,16 @@ namespace WebSocketSharp.Net
       return _websocketContext;
     }
 
-    internal bool Register ()
+    internal void SendAuthenticationChallenge (
+      AuthenticationSchemes scheme, string realm
+    )
     {
-      return _listener.RegisterContext (this);
+      _response.StatusCode = 401;
+
+      var chal = new AuthenticationChallenge (scheme, realm).ToString ();
+      _response.Headers.InternalSet ("WWW-Authenticate", chal, true);
+
+      _response.Close ();
     }
 
     internal void SendError ()
@@ -266,6 +229,7 @@ namespace WebSocketSharp.Net
 
         var enc = Encoding.UTF8;
         var entity = enc.GetBytes (content);
+
         _response.ContentEncoding = enc;
         _response.ContentLength64 = entity.LongLength;
 
@@ -276,8 +240,51 @@ namespace WebSocketSharp.Net
       }
     }
 
+    internal void SendError (int statusCode)
+    {
+      _errorStatusCode = statusCode;
+
+      SendError ();
+    }
+
+    internal void SendError (int statusCode, string message)
+    {
+      _errorStatusCode = statusCode;
+      _errorMessage = message;
+
+      SendError ();
+    }
+
+    internal bool SetUser (
+      AuthenticationSchemes scheme,
+      string realm,
+      Func<IIdentity, NetworkCredential> credentialsFinder
+    )
+    {
+      var user = HttpUtility.CreateUser (
+                   _request.Headers["Authorization"],
+                   scheme,
+                   realm,
+                   _request.HttpMethod,
+                   credentialsFinder
+                 );
+
+      if (user == null)
+        return false;
+
+      if (!user.Identity.IsAuthenticated)
+        return false;
+
+      _user = user;
+
+      return true;
+    }
+
     internal void Unregister ()
     {
+      if (_listener == null)
+        return;
+
       _listener.UnregisterContext (this);
     }
 
@@ -286,16 +293,32 @@ namespace WebSocketSharp.Net
     #region Public Methods
 
     /// <summary>
-    /// Accepts a WebSocket handshake request.
+    /// Accepts a WebSocket connection.
     /// </summary>
     /// <returns>
     /// A <see cref="HttpListenerWebSocketContext"/> that represents
     /// the WebSocket handshake request.
     /// </returns>
     /// <param name="protocol">
-    /// A <see cref="string"/> that specifies the subprotocol supported on
-    /// the WebSocket connection.
+    ///   <para>
+    ///   A <see cref="string"/> that specifies the name of the subprotocol
+    ///   supported on the WebSocket connection.
+    ///   </para>
+    ///   <para>
+    ///   <see langword="null"/> if not necessary.
+    ///   </para>
     /// </param>
+    /// <exception cref="InvalidOperationException">
+    ///   <para>
+    ///   This method has already been done.
+    ///   </para>
+    ///   <para>
+    ///   -or-
+    ///   </para>
+    ///   <para>
+    ///   The client request is not a WebSocket handshake request.
+    ///   </para>
+    /// </exception>
     /// <exception cref="ArgumentException">
     ///   <para>
     ///   <paramref name="protocol"/> is empty.
@@ -307,13 +330,77 @@ namespace WebSocketSharp.Net
     ///   <paramref name="protocol"/> contains an invalid character.
     ///   </para>
     /// </exception>
-    /// <exception cref="InvalidOperationException">
-    /// This method has already been called.
-    /// </exception>
     public HttpListenerWebSocketContext AcceptWebSocket (string protocol)
     {
+      return AcceptWebSocket (protocol, null);
+    }
+
+    /// <summary>
+    /// Accepts a WebSocket connection with initializing the WebSocket
+    /// interface.
+    /// </summary>
+    /// <returns>
+    /// A <see cref="HttpListenerWebSocketContext"/> that represents
+    /// the WebSocket handshake request.
+    /// </returns>
+    /// <param name="protocol">
+    ///   <para>
+    ///   A <see cref="string"/> that specifies the name of the subprotocol
+    ///   supported on the WebSocket connection.
+    ///   </para>
+    ///   <para>
+    ///   <see langword="null"/> if not necessary.
+    ///   </para>
+    /// </param>
+    /// <param name="initializer">
+    ///   <para>
+    ///   An <see cref="T:System.Action{WebSocket}"/> delegate.
+    ///   </para>
+    ///   <para>
+    ///   It specifies the delegate that invokes the method called when
+    ///   initializing a new WebSocket instance.
+    ///   </para>
+    /// </param>
+    /// <exception cref="InvalidOperationException">
+    ///   <para>
+    ///   This method has already been done.
+    ///   </para>
+    ///   <para>
+    ///   -or-
+    ///   </para>
+    ///   <para>
+    ///   The client request is not a WebSocket handshake request.
+    ///   </para>
+    /// </exception>
+    /// <exception cref="ArgumentException">
+    ///   <para>
+    ///   <paramref name="protocol"/> is empty.
+    ///   </para>
+    ///   <para>
+    ///   -or-
+    ///   </para>
+    ///   <para>
+    ///   <paramref name="protocol"/> contains an invalid character.
+    ///   </para>
+    ///   <para>
+    ///   -or-
+    ///   </para>
+    ///   <para>
+    ///   <paramref name="initializer"/> caused an exception.
+    ///   </para>
+    /// </exception>
+    public HttpListenerWebSocketContext AcceptWebSocket (
+      string protocol, Action<WebSocket> initializer
+    )
+    {
       if (_websocketContext != null) {
-        var msg = "The accepting is already in progress.";
+        var msg = "The method has already been done.";
+
+        throw new InvalidOperationException (msg);
+      }
+
+      if (!_request.IsWebSocketRequest) {
+        var msg = "The request is not a WebSocket handshake request.";
 
         throw new InvalidOperationException (msg);
       }
@@ -332,7 +419,27 @@ namespace WebSocketSharp.Net
         }
       }
 
-      return GetWebSocketContext (protocol);
+      var ret = GetWebSocketContext (protocol);
+
+      var ws = ret.WebSocket;
+
+      if (initializer != null) {
+        try {
+          initializer (ws);
+        }
+        catch (Exception ex) {
+          if (ws.ReadyState == WebSocketState.New)
+            _websocketContext = null;
+
+          var msg = "It caused an exception.";
+
+          throw new ArgumentException (msg, "initializer", ex);
+        }
+      }
+
+      ws.Accept ();
+
+      return ret;
     }
 
     #endregion

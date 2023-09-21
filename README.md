@@ -11,7 +11,7 @@ websocket-sharp supports:
 - [HTTP Authentication](#http-authentication)
 - [Query string, Origin header, and Cookies](#query-string-origin-header-and-cookies)
 - [Connecting through the HTTP proxy server](#connecting-through-the-http-proxy-server)
-- .NET Framework **3.5** or later (includes compatible environment such as [Mono])
+- .NET Framework **3.5** or later versions of .NET Framework (includes compatible environment such as [Mono])
 
 ## Branches ##
 
@@ -43,25 +43,6 @@ You can add websocket-sharp to your project with the NuGet Package Manager, by u
 
     PM> Install-Package WebSocketSharp -Pre
 
-### Unity Asset Store ###
-
-websocket-sharp is available on the Unity Asset Store (Sorry, Not available now).
-
-- [WebSocket-Sharp for Unity]
-
-It works with **Unity Free**, but there are some limitations:
-
-- [Security Sandbox of the Webplayer] (The server is not available in Web Player)
-- [WebGL Networking] (Not available in WebGL)
-- Incompatible platform (Not available for such UWP)
-- Lack of dll for the System.IO.Compression (The compression extension is not available on Windows)
-- .NET Socket Support for iOS/Android (iOS/Android Pro is required if your Unity is earlier than Unity 5)
-- .NET API 2.0 compatibility level for iOS/Android
-
-.NET API 2.0 compatibility level for iOS/Android may require to fix lack of some features for later than .NET Framework 2.0, such as the `System.Func<...>` delegates (so i have added them in the asset package).
-
-And it is priced at **US$15**. I believe your $15 makes this project more better, **Thank you!**
-
 ## Usage ##
 
 ### WebSocket Client ###
@@ -78,7 +59,7 @@ namespace Example
     {
       using (var ws = new WebSocket ("ws://dragonsnest.far/Laputa")) {
         ws.OnMessage += (sender, e) =>
-            Console.WriteLine ("Laputa says: " + e.Data);
+                          Console.WriteLine ("Laputa says: " + e.Data);
 
         ws.Connect ();
         ws.Send ("BALUS");
@@ -127,20 +108,20 @@ This event occurs when the WebSocket connection has been established.
 
 ```csharp
 ws.OnOpen += (sender, e) => {
-    ...
-  };
+               ...
+             };
 ```
 
 `System.EventArgs.Empty` is passed as `e`, so you do not need to use it.
 
 ##### WebSocket.OnMessage Event #####
 
-This event occurs when the `WebSocket` receives a message.
+This event occurs when the `WebSocket` instance receives a message.
 
 ```csharp
 ws.OnMessage += (sender, e) => {
-    ...
-  };
+                  ...
+                };
 ```
 
 A `WebSocketSharp.MessageEventArgs` instance is passed as `e`.
@@ -172,23 +153,23 @@ And if you would like to notify that a **ping** has been received, via this even
 ```csharp
 ws.EmitOnPing = true;
 ws.OnMessage += (sender, e) => {
-    if (e.IsPing) {
-      // Do something to notify that a ping has been received.
-      ...
+                  if (e.IsPing) {
+                    // Do something to notify that a ping has been received.
+                    ...
 
-      return;
-    }
-  };
+                    return;
+                  }
+                };
 ```
 
 ##### WebSocket.OnError Event #####
 
-This event occurs when the `WebSocket` gets an error.
+This event occurs when the `WebSocket` instance gets an error.
 
 ```csharp
 ws.OnError += (sender, e) => {
-    ...
-  };
+                ...
+              };
 ```
 
 A `WebSocketSharp.ErrorEventArgs` instance is passed as `e`.
@@ -205,8 +186,8 @@ This event occurs when the WebSocket connection has been closed.
 
 ```csharp
 ws.OnClose += (sender, e) => {
-    ...
-  };
+                ...
+              };
 ```
 
 A `WebSocketSharp.CloseEventArgs` instance is passed as `e`.
@@ -237,7 +218,7 @@ ws.Send (data);
 
 The `WebSocket.Send` method is overloaded.
 
-You can use the `WebSocket.Send (string)`, `WebSocket.Send (byte[])`, or `WebSocket.Send (System.IO.FileInfo)` method to send the data.
+You can use the `WebSocket.Send (string)`, `WebSocket.Send (byte[])`, `WebSocket.Send (System.IO.FileInfo)`, or `WebSocket.Send (System.IO.Stream, int)` method to send the data.
 
 If you would like to send the data asynchronously, you should use the `WebSocket.SendAsync` method.
 
@@ -277,7 +258,7 @@ namespace Example
     protected override void OnMessage (MessageEventArgs e)
     {
       var msg = e.Data == "BALUS"
-                ? "I've been balused already..."
+                ? "Are you kidding?"
                 : "I'm not available now.";
 
       Send (msg);
@@ -289,6 +270,7 @@ namespace Example
     public static void Main (string[] args)
     {
       var wssv = new WebSocketServer ("ws://dragonsnest.far");
+
       wssv.AddWebSocketService<Laputa> ("/Laputa");
       wssv.Start ();
       Console.ReadKey (true);
@@ -340,13 +322,18 @@ public class Chat : WebSocketBehavior
   private string _suffix;
 
   public Chat ()
-    : this (null)
   {
+    _suffix = String.Empty;
   }
 
-  public Chat (string suffix)
-  {
-    _suffix = suffix ?? String.Empty;
+  public string Suffix {
+    get {
+      return _suffix;
+    }
+
+    set {
+      _suffix = value ?? String.Empty;
+    }
   }
 
   protected override void OnMessage (MessageEventArgs e)
@@ -374,16 +361,15 @@ Creating a new instance of the `WebSocketServer` class.
 
 ```csharp
 var wssv = new WebSocketServer (4649);
+
 wssv.AddWebSocketService<Echo> ("/Echo");
 wssv.AddWebSocketService<Chat> ("/Chat");
-wssv.AddWebSocketService<Chat> ("/ChatWithNyan", () => new Chat (" Nyan!"));
+wssv.AddWebSocketService<Chat> ("/ChatWithNyan", s => s.Suffix = " Nyan!");
 ```
 
-You can add any WebSocket service to your `WebSocketServer` with the specified behavior and absolute path to the service, by using the `WebSocketServer.AddWebSocketService<TBehaviorWithNew> (string)` or `WebSocketServer.AddWebSocketService<TBehavior> (string, Func<TBehavior>)` method.
+You can add any WebSocket service to your `WebSocketServer` with the specified behavior and absolute path to the service, by using the `WebSocketServer.AddWebSocketService<TBehavior> (string)` or `WebSocketServer.AddWebSocketService<TBehavior> (string, Action<TBehavior>)` method.
 
-The type of `TBehaviorWithNew` must inherit the `WebSocketBehavior` class, and must have a public parameterless constructor.
-
-The type of `TBehavior` must inherit the `WebSocketBehavior` class.
+The type of `TBehavior` must inherit the `WebSocketBehavior` class, and must have a public parameterless constructor.
 
 So you can use a class in the above Step 2 to add the service.
 
@@ -404,12 +390,8 @@ wssv.Start ();
 Stopping the WebSocket server.
 
 ```csharp
-wssv.Stop (code, reason);
+wssv.Stop ();
 ```
-
-The `WebSocketServer.Stop` method is overloaded.
-
-You can use the `WebSocketServer.Stop ()`, `WebSocketServer.Stop (ushort, string)`, or `WebSocketServer.Stop (WebSocketSharp.CloseStatusCode, string)` method to stop the server.
 
 ### HTTP Server with the WebSocket ###
 
@@ -417,13 +399,14 @@ I have modified the `System.Net.HttpListener`, `System.Net.HttpListenerContext`,
 
 So websocket-sharp provides the `WebSocketSharp.Server.HttpServer` class.
 
-You can add any WebSocket service to your `HttpServer` with the specified behavior and path to the service, by using the `HttpServer.AddWebSocketService<TBehaviorWithNew> (string)` or `HttpServer.AddWebSocketService<TBehavior> (string, Func<TBehavior>)` method.
+You can add any WebSocket service to your `HttpServer` with the specified behavior and path to the service, by using the `HttpServer.AddWebSocketService<TBehavior> (string)` or `HttpServer.AddWebSocketService<TBehavior> (string, Action<TBehavior>)` method.
 
 ```csharp
 var httpsv = new HttpServer (4649);
+
 httpsv.AddWebSocketService<Echo> ("/Echo");
 httpsv.AddWebSocketService<Chat> ("/Chat");
-httpsv.AddWebSocketService<Chat> ("/ChatWithNyan", () => new Chat (" Nyan!"));
+httpsv.AddWebSocketService<Chat> ("/ChatWithNyan", s => s.Suffix = " Nyan!");
 ```
 
 For more information, would you see **[Example3]**?
@@ -432,7 +415,7 @@ For more information, would you see **[Example3]**?
 
 #### Per-message Compression ####
 
-websocket-sharp supports the [Per-message Compression][compression] extension (but does not support it with the [context take over]).
+websocket-sharp supports the [Per-message Compression][rfc7692] extension (but does not support it with the [context take over]).
 
 As a WebSocket client, if you would like to enable this extension, you should set the `WebSocket.Compression` property to a compression method before calling the connect method.
 
@@ -455,11 +438,7 @@ As a WebSocket server, if you would like to ignore the extensions requested from
 ```csharp
 wssv.AddWebSocketService<Chat> (
   "/Chat",
-  () =>
-    new Chat () {
-      // To ignore the extensions requested from a client.
-      IgnoreExtensions = true
-    }
+  s => s.IgnoreExtensions = true // To ignore the extensions requested from a client.
 );
 ```
 
@@ -495,8 +474,9 @@ As a WebSocket server, you should create a new instance of the `WebSocketServer`
 
 ```csharp
 var wssv = new WebSocketServer (5963, true);
-wssv.SslConfiguration.ServerCertificate =
-  new X509Certificate2 ("/path/to/cert.pfx", "password for cert.pfx");
+wssv.SslConfiguration.ServerCertificate = new X509Certificate2 (
+                                            "/path/to/cert.pfx", "password for cert.pfx"
+                                          );
 ```
 
 ### HTTP Authentication ###
@@ -542,19 +522,19 @@ As a WebSocket client, if you would like to send the query string in the handsha
 var ws = new WebSocket ("ws://example.com/?name=nobita");
 ```
 
-If you would like to send the Origin header in the handshake request, you should set the `WebSocket.Origin` property to an allowable value as the [Origin] header before calling the connect method.
+And if you would like to send the Origin header in the handshake request, you should set the `WebSocket.Origin` property to an allowable value as the [Origin] header before calling the connect method.
 
 ```csharp
 ws.Origin = "http://example.com";
 ```
 
-And if you would like to send the cookies in the handshake request, you should set any cookie by using the `WebSocket.SetCookie (WebSocketSharp.Net.Cookie)` method before calling the connect method.
+And also if you would like to send the cookies in the handshake request, you should set any cookie by using the `WebSocket.SetCookie (WebSocketSharp.Net.Cookie)` method before calling the connect method.
 
 ```csharp
 ws.SetCookie (new Cookie ("name", "nobita"));
 ```
 
-As a WebSocket server, if you would like to get the query string included in a handshake request, you should access the `WebSocketBehavior.Context.QueryString` property, such as the following.
+As a WebSocket server, if you would like to get the query string included in a handshake request, you should access the `WebSocketBehavior.QueryString` property, such as the following.
 
 ```csharp
 public class Chat : WebSocketBehavior
@@ -564,42 +544,44 @@ public class Chat : WebSocketBehavior
 
   protected override void OnOpen ()
   {
-    _name = Context.QueryString["name"];
+    _name = QueryString["name"];
   }
 
   ...
 }
 ```
 
-If you would like to get the value of the Origin header included in a handshake request, you should access the `WebSocketBehavior.Context.Origin` property.
-
-If you would like to get the cookies included in a handshake request, you should access the `WebSocketBehavior.Context.CookieCollection` property.
-
-And if you would like to validate the Origin header, cookies, or both, you should set each validation for it with your `WebSocketBehavior`, for example, by using the `WebSocketServer.AddWebSocketService<TBehavior> (string, Func<TBehavior>)` method with initializing, such as the following.
+And if you would like to validate the Origin header, cookies, or both, you should set each validation for it with your `WebSocketBehavior`, for example, by using the `WebSocketServer.AddWebSocketService<TBehavior> (string, Action<TBehavior>)` method with initializing, such as the following.
 
 ```csharp
 wssv.AddWebSocketService<Chat> (
   "/Chat",
-  () =>
-    new Chat () {
-      OriginValidator = val => {
-          // Check the value of the Origin header, and return true if valid.
-          Uri origin;
-          return !val.IsNullOrEmpty ()
-                 && Uri.TryCreate (val, UriKind.Absolute, out origin)
-                 && origin.Host == "example.com";
-        },
-      CookiesValidator = (req, res) => {
-          // Check the cookies in 'req', and set the cookies to send to
-          // the client with 'res' if necessary.
-          foreach (Cookie cookie in req) {
-            cookie.Expired = true;
-            res.Add (cookie);
-          }
+  s => {
+    s.OriginValidator =
+      val => {
+        // Check the value of the Origin header, and return true if valid.
 
-          return true; // If valid.
+        Uri origin;
+
+        return !val.IsNullOrEmpty ()
+               && Uri.TryCreate (val, UriKind.Absolute, out origin)
+               && origin.Host == "example.com";
+      };
+
+    s.CookiesValidator =
+      (req, res) => {
+        // Check the cookies in "req", and set the cookies to send to
+        // the client with "res" if necessary.
+
+        foreach (var cookie in req) {
+          cookie.Expired = true;
+
+          res.Add (cookie);
         }
-    }
+
+        return true; // If valid.
+      };
+  }
 );
 ```
 
@@ -649,7 +631,7 @@ Examples using websocket-sharp.
 
 ### Example ###
 
-[Example] connects to the [Echo server].
+[Example] connects to the server executed by [Example2] or [Example3].
 
 ### Example2 ###
 
@@ -667,7 +649,7 @@ websocket-sharp supports **RFC 6455**, and it is based on the following referenc
 
 - [The WebSocket Protocol][rfc6455]
 - [The WebSocket API][api]
-- [Compression Extensions for WebSocket][compression]
+- [Compression Extensions for WebSocket][rfc7692]
 
 Thanks for translating to japanese.
 
@@ -679,7 +661,6 @@ Thanks for translating to japanese.
 websocket-sharp is provided under [The MIT License].
 
 
-[Echo server]: http://www.websocket.org/echo.html
 [Example]: https://github.com/sta/websocket-sharp/tree/master/Example
 [Example2]: https://github.com/sta/websocket-sharp/tree/master/Example2
 [Example3]: https://github.com/sta/websocket-sharp/tree/master/Example3
@@ -689,16 +670,12 @@ websocket-sharp is provided under [The MIT License].
 [NuGet Gallery: websocket-sharp]: http://www.nuget.org/packages/WebSocketSharp
 [Origin]: http://tools.ietf.org/html/rfc6454#section-7
 [Query]: http://tools.ietf.org/html/rfc3986#section-3.4
-[Security Sandbox of the Webplayer]: http://docs.unity3d.com/Manual/SecuritySandbox.html
 [Squid]: http://www.squid-cache.org
 [The MIT License]: https://raw.github.com/sta/websocket-sharp/master/LICENSE.txt
 [Unity]: http://unity3d.com
-[WebGL Networking]: http://docs.unity3d.com/Manual/webgl-networking.html
-[WebSocket-Sharp for Unity]: http://u3d.as/content/sta-blockhead/websocket-sharp-for-unity
 [api]: http://www.w3.org/TR/websockets
 [api_ja]: http://www.hcn.zaq.ne.jp/___/WEB/WebSocket-ja.html
-[compression]: http://tools.ietf.org/html/draft-ietf-hybi-permessage-compression-19
-[context take over]: http://tools.ietf.org/html/draft-ietf-hybi-permessage-compression-19#section-8.1.1
+[context take over]: https://datatracker.ietf.org/doc/html/rfc7692#section-7.1.1
 [draft-hixie-thewebsocketprotocol-75]: http://tools.ietf.org/html/draft-hixie-thewebsocketprotocol-75
 [draft-ietf-hybi-thewebsocketprotocol-00]: http://tools.ietf.org/html/draft-ietf-hybi-thewebsocketprotocol-00
 [draft75]: https://github.com/sta/websocket-sharp/tree/draft75
@@ -707,3 +684,4 @@ websocket-sharp is provided under [The MIT License].
 [rfc2617]: http://tools.ietf.org/html/rfc2617
 [rfc6455]: http://tools.ietf.org/html/rfc6455
 [rfc6455_ja]: http://www.hcn.zaq.ne.jp/___/WEB/RFC6455-ja.html
+[rfc7692]: https://datatracker.ietf.org/doc/html/rfc7692
