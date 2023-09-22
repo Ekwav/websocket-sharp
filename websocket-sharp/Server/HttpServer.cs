@@ -877,7 +877,7 @@ namespace WebSocketSharp.Server
       }
 
       var e = new HttpRequestEventArgs (context, _docRootPath);
-      evt (this, e);
+      await evt (this, e);
 
       context.Response.Close ();
     }
