@@ -45,6 +45,7 @@ using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Net.Security;
 using System.Net.Sockets;
 using System.Security.Cryptography;
@@ -2351,9 +2352,14 @@ namespace WebSocketSharp
 
                 return;
               }
-              if(overflowbreak++ > 10_000)
+              if(overflowbreak++ > 8_000)
               {
-                _log.Error("Overflow break");
+                  var headers = _context.Headers;
+                  if(headers != null)
+                    _log.Error("Overflow break " + string.Join(";", headers.AllKeys.Select(k => k + "=" + headers[k])));
+                  else 
+                    _log.Error("Overflow break");
+                Close();
                 return;
               }
               receive ();
