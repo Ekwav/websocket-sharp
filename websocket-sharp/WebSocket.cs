@@ -2331,6 +2331,8 @@ namespace WebSocketSharp
       _pongReceived = new ManualResetEvent (false);
       _receivingExited = new ManualResetEvent (false);
 
+      // count method coints and stop to prevent infinity loop
+      int overflowbreak = 0;
       Action receive = null;
       receive =
         () =>
@@ -2349,7 +2351,11 @@ namespace WebSocketSharp
 
                 return;
               }
-
+              if(overflowbreak++ > 10_000)
+              {
+                _log.Error("Overflow break");
+                return;
+              }
               receive ();
 
               if (_inMessage)
