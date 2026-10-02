@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <NoWarn>SYSLIB0014;SYSLIB0039;CS0618</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="../../websocket-sharp/**/*.cs" Exclude="../../websocket-sharp/obj/**;../../websocket-sharp/bin/**" />
+  </ItemGroup>
+</Project>

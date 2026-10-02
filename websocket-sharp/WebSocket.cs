@@ -2332,8 +2332,6 @@ namespace WebSocketSharp
       _pongReceived = new ManualResetEvent (false);
       _receivingExited = new ManualResetEvent (false);
 
-      // count method coints and stop to prevent infinity loop
-      int overflowbreak = 0;
       Action receive = null;
       receive =
         () =>
@@ -2352,17 +2350,8 @@ namespace WebSocketSharp
 
                 return;
               }
-              if(overflowbreak++ > 8_000)
-              {
-                  var headers = _context.Headers;
-                  if(headers != null)
-                    _log.Error("Overflow break " + string.Join(";", headers.AllKeys.Select(k => k + "=" + headers[k])));
-                  else 
-                    _log.Error("Overflow break");
-                Close();
-                return;
-              }
-              receive ();
+              // BeginRead can complete inline; queue the next frame to avoid recursive callbacks.
+              ThreadPool.QueueUserWorkItem (_ => receive ());
 
               if (_inMessage)
                 return;
